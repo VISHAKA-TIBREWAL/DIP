@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Recipe Details</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.1/xlsx.full.min.js"></script>
+    <style>
+      /* General Page Style */
+      body {
+        background-color: #e0f7fa;
+        font-family: "Segoe UI", sans-serif;
+        color: #333;
+      }
+      .container {
+        max-width: 800px;
+      }
+      #recipeContainer {
+        border-radius: 15px;
+        background-color: #ffffff;
+        padding: 30px;
+        margin-top: 20px;
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      #recipeContainer.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* Header and Back Button */
+      .display-4 {
+        font-size: 2.5rem;
+        color: #00796b;
+      }
+      .btn-secondary {
+        background-color: #80cbc4;
+        border-color: #80cbc4;
+      }
+      .btn-secondary:hover {
+        background-color: #00796b;
+      }
+
+      /* Image Styling */
+      .card-img-top {
+        border-radius: 12px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+      }
+
+      /* Sections Styling */
+      .section-header {
+        color: #004d40;
+        margin-bottom: 15px;
+      }
+
+      /* Ingredient and Instruction List Styling */
+      .list-group-item {
+        background-color: #e0f2f1;
+        border: none;
+        color: #004d40;
+        transition: transform 0.2s;
+      }
+      .list-group-item:hover {
+        transform: scale(1.03);
+      }
+
+      /* Block Flowchart Styling */
+      .recipe-block {
+        border-left: 4px solid #80cbc4;
+        background-color: #e0f2f1;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        transition: transform 0.3s ease;
+      }
+      .recipe-block:hover {
+        transform: scale(1.05);
+      }
+
+      /* Animation for Smooth Loading */
+      .fade-in {
+        animation: fadeIn 1s ease forwards;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container" id="recipeContainer">
+      <!-- Dynamic Recipe Content will be inserted here -->
+    </div>
+
+    <input type="file" id="xlsxFile" class="form-control my-3" accept=".xlsx" />
+
+    <script>
+      // Function to load and parse the XLSX file
+      function loadAndParseXLSX(file) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+
+          // Assuming the first sheet contains the recipe data
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+
+          // Convert sheet to JSON
+          const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+          // Get the first recipe (or loop through if multiple)
+          const recipe = jsonData[0]; // Modify this if needed to handle multiple recipes
+
+          // Call the function to render the recipe
+          loadRecipe(recipe);
+        };
+        reader.readAsArrayBuffer(file);
+      }
+
+      // Function to load and render recipe details
+      function loadRecipe(recipe) {
+        // Recipe Container
+        const container = document.getElementById("recipeContainer");
+
+        // Recipe Header
+        const recipeHeader = document.createElement("div");
+        recipeHeader.classList.add("text-center", "mb-4", "fade-in");
+        const title = document.createElement("h1");
+        title.classList.add("display-4");
+        title.textContent = recipe["Recipe Name"];
+        recipeHeader.appendChild(title);
+
+        // Recipe Image
+        const imageSection = document.createElement("div");
+        imageSection.classList.add("row", "fade-in");
+        const imageCol = document.createElement("div");
+        imageCol.classList.add("col-md-12");
+        const imageCard = document.createElement("div");
+        imageCard.classList.add("card", "h-100");
+        const image = document.createElement("img");
+        const imageFile = recipe["Final Dish Image"] || "default.png"; // Fallback to default if no image
+        image.src = `/static/images/${imageFile}`;
+        image.classList.add("card-img-top");
+        image.alt = recipe["Recipe Name"];
+        imageCard.appendChild(image);
+        imageCol.appendChild(imageCard);
+        imageSection.appendChild(imageCol);
+
+        // Recipe Details Section
+        const detailsSection = document.createElement("div");
+        detailsSection.classList.add("row", "mt-4", "fade-in");
+
+        // Ingredients Section
+        const ingredientsCol = document.createElement("div");
+        ingredientsCol.classList.add("col-md-6", "mb-3");
+        const ingredientsHeader = document.createElement("h3");
+        ingredientsHeader.classList.add("section-header");
+        ingredientsHeader.textContent = "Ingredients";
+        const ingredientsList = document.createElement("ul");
+        ingredientsList.classList.add("list-group");
+
+        recipe["Ingredients"].split(", ").forEach((ingredient) => {
+          const listItem = document.createElement("li");
+          listItem.classList.add("list-group-item", "recipe-block");
+          listItem.textContent = ingredient;
+          ingredientsList.appendChild(listItem);
+        });
+        ingredientsCol.appendChild(ingredientsHeader);
+        ingredientsCol.appendChild(ingredientsList);
+
+        // Instructions Section
+        const instructionsCol = document.createElement("div");
+        instructionsCol.classList.add("col-md-6", "mb-3");
+        const instructionsHeader = document.createElement("h3");
+        instructionsHeader.classList.add("section-header");
+        instructionsHeader.textContent = "Instructions";
+
+        // Display each instruction as a step in the flowchart-style block
+        const instructionsBlocks = recipe["Instructions"]
+          .split(". ")
+          .map((instruction) => {
+            const block = document.createElement("div");
+            block.classList.add("recipe-block");
+            block.textContent = instruction;
+            return block;
+          });
+
+        instructionsCol.appendChild(instructionsHeader);
+        instructionsBlocks.forEach((block) =>
+          instructionsCol.appendChild(block)
+        );
+
+        // Append ingredients and instructions to the details section
+        detailsSection.appendChild(ingredientsCol);
+        detailsSection.appendChild(instructionsCol);
+
+        // Back Button
+        const backButton = document.createElement("div");
+        backButton.classList.add("text-center", "mt-4", "fade-in");
+        const backLink = document.createElement("a");
+        backLink.href = "/";
+        backLink.classList.add("btn", "btn-secondary");
+        backLink.textContent = "Back to Recipe List";
+        backButton.appendChild(backLink);
+
+        // Append all sections to the container
+        container.innerHTML = ""; // Clear container
+        container.appendChild(recipeHeader);
+        container.appendChild(imageSection);
+        container.appendChild(detailsSection);
+        container.appendChild(backButton);
+
+        // Reveal with smooth animation
+        setTimeout(() => {
+          container.classList.add("show");
+        }, 100);
+      }
+
+      // Event listener for file input
+      document
+        .getElementById("xlsxFile")
+        .addEventListener("change", function (e) {
+          const file = e.target.files[0];
+          if (file) {
+            loadAndParseXLSX(file);
+          }
+        });
+    </script>
+  </body>
+</html>
